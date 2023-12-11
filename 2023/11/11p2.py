@@ -51,12 +51,12 @@ with open("input.txt", "r") as f:
 
 universe = expand(universe)
 galaxies = search_galaxies(universe)
-combinations = list(itertools.product(galaxies, galaxies))
+combinations = list(itertools.combinations(galaxies, 2))
 
 if __name__ == '__main__':
 
     total = 0
-    for c in combinations:
-        total += distance(c[0], c[1])
+    for c1, c2 in combinations:
+        total += distance(c1, c2)
 
-    print(total / 2)
+    print(total)
