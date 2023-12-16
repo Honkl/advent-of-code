@@ -1,18 +1,32 @@
+import os
 import re
 import time
 from multiprocessing import Pool
 from typing import List, Tuple
 
-import numpy as np
+# Custom cache can be replaced with itertools built-in cache
+cache = {}
 
 
 def is_valid(symbols: List[str], counts: List[int]) -> bool:
+    """
+    Regex evaluation whether the specified pattern is valid with regards the counts.
+    """
     pattern = "\\.+".join(f"#{{c}}".replace("c", str(c)) for c in counts)
     pattern = "^\\.*" + pattern + "\\.*$"
     return bool(re.search(pattern, "".join(symbols)))
 
 
 def is_still_valid(symbols: List[str], counts: List[int]) -> bool:
+    """
+    Helper function that evaluates whether the `symbols` sequence can still match the `counts`. Returns False
+    if we know at this point that it won't matter, what we will for remaining '?' at this point.
+
+    We will count #s until first '?' and we will match it to first `counts` value.
+    """
+    if len(counts) == 0:
+        return True
+
     desired_count = counts[0]
     index = 0
     current_count = 0
@@ -23,8 +37,7 @@ def is_still_valid(symbols: List[str], counts: List[int]) -> bool:
                 continue
 
             if current_count != desired_count:
-                # We have more than we wanted
-                # print(f"INVALID: {symbols}, {counts}")
+                # We have more # than we wanted, so it's already invalid
                 return False
 
             current_count = 0
@@ -43,99 +56,88 @@ def is_still_valid(symbols: List[str], counts: List[int]) -> bool:
 
     return True
 
-    #
-    # parts = "".join(symbols).split(".")
-    # parts = [p for p in parts if p != ""]
-    #
-    # # We have complicated case, won't bother now lol
-    # if len(parts) != len(counts):
-    #     return True
-    #
-    # # Compare first count if it is still valid
-    # for i, part in enumerate(parts):
-    #     if part.count("#") > counts[i]:
-    #         return False
-    #
-    # return True
-
 
 def recursive_eval(symbols: List[str], counts: List[int]) -> int:
-    if all(value != "?" for value in symbols):
-        if is_valid(symbols, counts):
-            # print(f"{symbols} <--- VALID")
-            return 1
-        # print(symbols)
-        return 0
+    """
+    Regular recursive evaluation for the `symbols` sequence.
+    """
 
+    # Cached value, we just return pre-computed result
+    hash_name = "".join(symbols) + str(counts)
+    if hash_name in cache.keys():
+        return cache[hash_name]
+
+    # We already filled all '?' symbols
+    if all(value != "?" for value in symbols):
+        return 1 if is_valid(symbols, counts) else 0
+
+    # Too much or too few #s in the sequence
     if symbols.count("#") > sum(counts) or symbols.count("#") + symbols.count("?") < sum(counts):
         return 0
 
+    # # Partial evaluation
     if not is_still_valid(symbols, counts):
         return 0
 
     index = symbols.index("?")
-    local_copy = symbols.copy()
 
+    # Find first #, and continue with subset
+    found_occurrence = None
+    for i, ch in enumerate(symbols):
+        if ch == "#" and i < index:
+            if all(s == "#" for s in symbols[i:i + counts[0]]) and symbols[i + counts[0]] == ".":
+                found_occurrence = i
+            break
+
+    # Cutoff the first count from both `counts` and `symbols`
+    if found_occurrence is not None:
+        local_copy = symbols.copy()[found_occurrence + counts[0]:]
+        index = local_copy.index("?")
+        new_indices = counts[1:]
+    else:
+        local_copy = symbols.copy()
+        new_indices = counts
+
+    # Good matches in the subset
     local_copy[index] = "."
-    good = recursive_eval(local_copy, counts)
+    good = recursive_eval(local_copy, new_indices)
 
+    # Bad matches in the subset
     local_copy[index] = "#"
-    bad = recursive_eval(local_copy, counts)
+    bad = recursive_eval(local_copy, new_indices)
 
+    cache[hash_name] = good + bad
     return good + bad
 
 
-def evaluate(data: Tuple[str, List[int]]) -> int:  # noqa
-    symbols, counts = data
+def unfold(symbols: str, counts: List[int], k: int) -> Tuple[str, List[int]]:
+    flatten = []
+    for inner_list in [counts] * k:
+        flatten.extend(inner_list)
+    return "?".join([symbols] * k), flatten
+
+
+def evaluate(line: str) -> int:
+    n = 5
+    symbols, counts = line.strip().split(" ")
+    counts = list(map(int, counts.split(",")))
+    symbols, counts = unfold(symbols, counts, n)
 
     valid_combs = recursive_eval(list(symbols), counts)
 
-    print(f"Combinations: {valid_combs}    {symbols}    {counts}")
     return valid_combs
 
 
-def unfold(symbols: str, counts: List[int], k: int) -> Tuple[str, List[int]]:
-    return "?".join([symbols] * k), list(np.array([counts] * k).flatten())
-
-
 if __name__ == '__main__':
+    # Run pypy.exe 12p2.py for faster eval
+
+    start = time.time()
 
     with open("input.txt", "r") as f:
-        springs, values = [], []
-        for line in f:
-            s, v = line.strip().split(" ")
-            springs.append(s)
-            values.append(list(map(int, v.split(","))))
+        lines = f.readlines()
 
-    N = 3
-    totals = []
-    print("Evaluating unfolded results")
-    for n in range(1, N + 1):
-        start = time.time()
-        data = [unfold(springs[i], values[i], n) for i in range(len(springs))]
-        with Pool(16) as p:
-            results = p.map(evaluate, data)
+    with Pool(os.cpu_count()) as p:
+        results = p.map(evaluate, lines)
 
-        totals.append(results)
-        # print(sum(results))
-        # print(time.time() - start)
-
-    print("Totals:")
-    for t in totals:
-        print(t)
-
-    print("Factors")
-    factors = [b / a for a, b in zip(totals[0], totals[1])]
-    print(factors)
-
-    N = 5
-    total = 0
-    initials = totals[0]
-    # print(initials)
-    for value, factor in zip(initials, factors):
-        multiplied = value * (factor ** (N - 1))
-        # print(value, factor, multiplied)
-        total += multiplied
-
-    print(total)
-
+    print(sum(results))
+    print(time.time() - start)
