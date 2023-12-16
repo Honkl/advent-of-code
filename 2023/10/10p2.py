@@ -102,12 +102,11 @@ def is_on_the_path(i: int, j: int, path: List[Tuple[int, int, Direction]]):
 
 def assign_sides(path: List[Tuple[int, int, Direction]]) -> Tuple[int, int]:
     for i, j, direction in path:
-        if i == 3 and j == 15:
-            print_sides()
         symbol = field[i][j]
 
         # Side is not assigned if it was already assigned before, or it is on the path for each symbol
 
+        # Ugly af but not time for imps
         if symbol == "|":
             if j - 1 >= 0:
                 next_symbol = sides[i][j - 1]
