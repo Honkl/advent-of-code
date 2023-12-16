@@ -1,5 +1,6 @@
 import numpy as np  # noqa
 import copy
+from typing import Optional
 
 
 def swap(pattern: np.array, i: int, j: int) -> np.array:  # noqa
@@ -8,12 +9,13 @@ def swap(pattern: np.array, i: int, j: int) -> np.array:  # noqa
     return cp
 
 
-def search_reflection(pattern: np.array) -> int:  # noqa
+def search_reflection(pattern: np.array, reflection_line: Optional[int]) -> int:  # noqa
+    reflections = []
     for line_index in range(len(pattern)):
         up = pattern[:line_index]
         down = pattern[line_index:]
 
-        if len(up) == 0:
+        if len(up) == 0 or len(up) == len(pattern):
             continue
 
         if len(up) < len(down):
@@ -23,9 +25,18 @@ def search_reflection(pattern: np.array) -> int:  # noqa
             up = up[len(up) - len(down):]
 
         if all((a == b).all() for a, b in zip(up, down[::-1])):  # noqa
-            return line_index
+            reflections.append(line_index)
 
-    return 0
+    if len(reflections) == 0:
+        return 0
+
+    if len(reflections) == 1:
+        return reflections[0]
+
+    assert len(reflections) == 2, reflections
+
+    # Return "the other" reflection (the newly found)
+    return reflections[0] if reflections[1] == reflection_line else reflections[1]
 
 
 if __name__ == '__main__':
@@ -43,49 +54,34 @@ if __name__ == '__main__':
         patterns.append(pattern)
 
     total = 0
-    for x, p in enumerate(patterns):
-
-        print(x)
+    for p in patterns:
+        # Original score
+        horizontal_score = search_reflection(p, None)
+        vertical_score = search_reflection(np.transpose(p), None)
 
         fixed = False
         for i in range(len(p)):
             if fixed:
                 break
             for j in range(len(p[i])):
-                horizontal_score = search_reflection(p)
-                vertical_score = search_reflection(np.transpose(p))
-
-                # print(p)
                 swap_p = swap(p, i, j)
-                # print(p)
+                new_horizontal_score = search_reflection(swap_p, horizontal_score)
+                new_vertical_score = search_reflection(np.transpose(swap_p), vertical_score)
 
-                new_horizontal_score = search_reflection(swap_p)
-                new_vertical_score = search_reflection(np.transpose(swap_p))
-
-                # print(horizontal_score, vertical_score, new_horizontal_score, new_vertical_score)
-
+                # Same reflection, we try another swap
                 if horizontal_score == new_horizontal_score and vertical_score == new_vertical_score:
-                    # print(i, j)
                     continue
 
+                # We found new vertical reflection
                 if new_vertical_score > 0 and new_vertical_score != vertical_score:
-                    print(
-                        f"i={i}, j={j}, vs={vertical_score}, new_vs={new_vertical_score}, hs={horizontal_score}, new_hs={new_horizontal_score}")
                     total += new_vertical_score
                     fixed = True
                     break
 
+                # We found new horizontal reflection
                 if new_horizontal_score > 0 and new_horizontal_score != horizontal_score:
-                    print(
-                        f"i={i}, j={j}, vs={vertical_score}, new_vs={new_vertical_score}, hs={horizontal_score}, new_hs={new_horizontal_score}")
                     total += 100 * new_horizontal_score
                     fixed = True
                     break
 
-        if not fixed:
-            if horizontal_score > 0:
-                total += 100 * horizontal_score
-            if vertical_score > 0:
-                total += vertical_score
-            print("WTF")
     print(total)

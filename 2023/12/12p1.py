@@ -36,15 +36,13 @@ def evaluate(symbols: str, counts: List[int]) -> int:
 
 
 if __name__ == '__main__':
-    with open("input_pk.txt", "r") as f:
-        springs, values = [], []
-        for line in f:
-            s, v = line.strip().split(" ")
-            springs.append(s)
-            values.append(list(map(int, v.split(","))))
 
     total = 0
-    for i in range(len(springs)):
-        total += evaluate(springs[i], values[i])
+
+    with open("input.txt", "r") as f:
+        for line in f:
+            s, c = line.strip().split(" ")
+            c = list(map(int, c.split(",")))
+            total += evaluate(s, c)
 
     print(total)

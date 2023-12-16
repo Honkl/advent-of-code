@@ -25,7 +25,6 @@ if __name__ == '__main__':
 
     patterns = []
     with open("input.txt", "r") as f:
-
         pattern = []
         for line in f:
             if line.strip() == "":
