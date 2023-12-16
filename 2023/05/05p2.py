@@ -1,5 +1,5 @@
-from collections import namedtuple
-from typing import Dict, List, Tuple
+from multiprocessing import Pool
+from typing import Tuple
 
 keys = [
     "seed-to-soil",
@@ -11,87 +11,62 @@ keys = [
     "humidity-to-location"
 ]
 
+maps = {}
 
-class Node(namedtuple):
-    start: int
-    end: int
-    level: str
+with open("input.txt", "r", encoding="utf-8") as f:
+    for line in f:
 
-
-def load_data() -> Tuple[Dict[str, List[List[int]]], Dict[int, int]]:
-    maps = {}
-    current_key = None
-    seeds = []
-
-    with open("input_test.txt", "r", encoding="utf-8") as f:
-        for line in f:
-
-            if "seeds" in line:
-                seeds = list(map(int, line.split(":")[1].strip().split(" ")))
-                continue
-
-            for key in keys:
-                if key in line:
-                    current_key = key
-                    break
-
-            if "map" in line or line.strip() == "":
-                continue
-
-            if current_key not in maps.keys():
-                maps[current_key] = []
-
-            data = list(map(int, line.strip().split(" ")))
-            maps[current_key].append(data)
-
-    # Convert seeds to actual list
-    new_seeds = {}
-    for i, s in enumerate(seeds):
-        if i % 2 == 0:
-            new_seeds[s] = seeds[i + 1]
-
-    return maps, new_seeds
-
-
-maps, seeds = load_data()
-
-
-def resolve(node: Node) -> List[Node] | int:
-    insatiable, satiable = [], []
-    for mapping in maps[node.level]:
-        dest, source, length = mapping
-
-        # Whole number is out of bounds
-        if node.end < source or node.start > dest:
+        if "seeds" in line:
+            seeds = list(map(int, line.split(":")[1].strip().split(" ")))
             continue
 
-        # Number partially belongs to the range
-        satiable.append(Node(
-            max(node.start, source),
-            min(node.end, source + length - 1),
-            node.level,
-        ))
+        for key in keys:
+            if key in line:
+                current_key = key
+                break
 
-    for sat_node in satiable:
-        ...
-        # TODO: some nice logic
+        if "map" in line or line.strip() == "":
+            continue
+
+        if current_key not in maps.keys():
+            maps[current_key] = []
+
+        data = list(map(int, line.strip().split(" ")))
+        maps[current_key].append(data)
+
+
+def resolve(node: Tuple[int, int]) -> int:
+    print(f"Called resolve with node: {node}")
+    min_value = None
+    for seed in range(node[0], node[0] + node[1]):
+        value = seed
+        for key in keys:
+            for mapping in maps[key]:
+                dest, source, length = mapping
+                if source <= value < source + length:
+                    shift = value - source
+                    value = dest + shift
+                    break
+
+        if min_value is None or value < min_value:
+            min_value = value
+
+    print(f"Node {node} resolved with min value {min_value}")
+    return min_value
 
 
 if __name__ == '__main__':
 
-    results = []
-    nodes_to_process = []
-    for seed, length_ in seeds.items():
-        nodes_to_process.append(Node(seed, seed + length_ - 1, "seed-to-soil"))
+    # Use PyPy3 to bruteforce
+    # Run pypy.exe .\05p2_bruteforce.py
 
-    min_location = None
-    while len(nodes_to_process) > 0:
-        n = nodes_to_process.pop(0)
-        result = resolve(n)
-        if isinstance(result, int):
-            if min_location is None or result < min_location:
-                min_location = result
-        else:
-            nodes_to_process.append(result)
+    current_key = None
+    new_seeds = []
+    for i, s in enumerate(seeds):
+        if i % 2 == 0:
+            new_seeds.append((s, seeds[i + 1]))
 
-    print(min_location)
+    with Pool(16) as p:
+        results = p.map(resolve, new_seeds)
+
+    print(min(results))
