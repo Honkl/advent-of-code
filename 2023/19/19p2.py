@@ -3,21 +3,6 @@ import time
 from typing import Union, Dict, List, Any
 
 
-class Part:
-    items: Dict[str, int]
-
-    def __init__(self, x: int, m: int, a: int, s: int) -> None:  # noqa
-        self.items = {
-            "x": x,
-            "m": m,
-            "a": a,
-            "s": s,
-        }
-
-    def __str__(self) -> str:
-        return str([f"{k}={v}" for k, v in self.items.items()])
-
-
 class Condition:
     variable: str
     operator: str
