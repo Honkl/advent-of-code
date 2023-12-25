@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 numpy = "==1.26.2"
+matplotlib = "*"
 
 [requires]
 python_version = "3.11"
