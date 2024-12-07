@@ -1,3 +1,5 @@
+# This solution is quite slow and not effective, runs ~1min with default CPython, so sufficient enough
+
 import sys
 import timeit
 from copy import deepcopy
@@ -99,17 +101,10 @@ def run() -> None:
             if testing_area[i][j] == "X":
                 args.append((start_row, start_col, start_dir, i, j, game_map))
 
-            if len(args) >= 250:
-                break
-        if len(args) >= 250:
-            break
-
     print(f"Total available placements: {len(args)}")
 
     with pool.Pool(16) as p:
         results = p.map(eval, args)
-
-    # results = [eval(a) for a in args]
 
     print(f"Possible placements: {sum(results)}")
     print(f"Runtime: {timeit.default_timer() - start}s")
