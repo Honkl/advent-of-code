@@ -1,5 +1,13 @@
 import timeit
 from typing import Optional
+from enum import StrEnum
+
+
+class Direction(StrEnum):
+    UP = "UP"
+    DOWN = "DOWN"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
 
 
 def compute_region(row: int, col: int, grid: list[list[str]]) -> Optional[list[tuple[int, int]]]:
@@ -40,28 +48,49 @@ def compute_region(row: int, col: int, grid: list[list[str]]) -> Optional[list[t
     return visited
 
 
+def solve_position(i: int, j: int, direction: Direction, sides: list) -> None:
+    """Inplace update of `sides` list."""
+    added = False
+    for side in sides:
+
+        a, b = (0,), (0,)
+        match direction:
+            case Direction.UP | Direction.DOWN:
+                a = (i, j - 1)
+                b = (i, j + 1)
+            case Direction.LEFT | Direction.RIGHT:
+                a = (i - 1, j)
+                b = (i + 1, j)
+
+        a = (a[0], a[1], direction)
+        b = (b[0], b[1], direction)
+
+        if a in side or b in side:
+            side.append((i, j, direction))
+            added = True
+
+    if not added:
+        sides.append([(i, j, direction)])
+
+
 def eval_perimeter(region: list[tuple[int, int]], grid: list[list[str]]) -> int:
-    """Looking at each side of each tile and checking whether it is boundary with different region."""
-    perimeter = 0
-    for i, j in region:
+    """Build up all sides for the region."""
+    sides = []
+    for i, j in sorted(region):
 
-        # Looking up
         if i == 0 or (i - 1, j) not in region:
-            perimeter += 1
+            solve_position(i, j, Direction.UP, sides)
 
-        # Looking down
         if i == len(grid) - 1 or (i + 1, j) not in region:
-            perimeter += 1
+            solve_position(i, j, Direction.DOWN, sides)
 
-        # Looking left
         if j == 0 or (i, j - 1) not in region:
-            perimeter += 1
+            solve_position(i, j, Direction.LEFT, sides)
 
-        # Looking right
         if j == len(grid[i]) - 1 or (i, j + 1) not in region:
-            perimeter += 1
+            solve_position(i, j, Direction.RIGHT, sides)
 
-    return perimeter
+    return len(sides)
 
 
 def run() -> None:
